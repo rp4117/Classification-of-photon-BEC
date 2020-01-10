@@ -1,0 +1,802 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec  3 16:11:01 2019
+
+@author: roryp
+"""
+
+#Import Packages.
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+import pandas as pd
+import seaborn as sns
+from math import floor, ceil
+from pylab import rcParams
+from sklearn.model_selection import train_test_split
+# TensorFlow and tf.keras
+import tensorflow as tf
+from tensorflow import keras
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.utils import class_weight
+import pandas
+from keras.models import Sequential
+from keras.layers import Dense, Flatten, Dropout
+from keras.wrappers.scikit_learn import KerasClassifier
+from keras.utils import np_utils
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+from sklearn.preprocessing import LabelEncoder
+from sklearn.pipeline import Pipeline
+from tensorflow.keras.callbacks import TensorBoard
+from mpl_toolkits.mplot3d import Axes3D
+#%%
+
+#Import Data 15 modes (from datav2)
+
+order = 3  # this is/ an order of approximation, which is not relevant at the moment
+modes = 15 # (or 21) the number of modes
+mode_val=[]
+pump_poww=[]
+for w0 in np.arange(570.0,600.5,0.25):
+    alldata=np.load(r"C:\Users\roryp\OneDrive\Documents\Yr3project\Data_v2"+"\\threshData_{}_{}_{}.npy".format(w0,modes,order),encoding='bytes',allow_pickle=True).item(0)
+    mode_val.append(list(alldata.values())[1])
+    pump_poww.append(list(alldata.values())[0])
+training_w0=[]
+training_pump=[]
+
+for i in range(122):
+    if len(mode_val[i]) == 129:
+        for j in range(129):
+            training_w0.append(np.arange(570.0,600.5,0.25)[i])
+            training_pump.append(pump_poww[i][j])
+print('number of training w0s',len(training_w0))
+
+#%%
+print(len(mode_val))
+print(training_pump[129])
+
+#%%
+#Finding no of condensed modes for each pump power.
+
+threshold=1e12
+y=[]
+# Find output for 40 w and 33 pump_pow
+for w0 in range(122):
+    
+    for pump_power in range(129):
+        if len(mode_val[w0]) == 129:
+            populated_modes=[]
+            for mode in range(len(mode_val[w0][pump_power])):
+                threshold1=(max(mode_val[w0][pump_power])+min(mode_val[w0][pump_power]))/2
+                if mode_val[w0][pump_power][mode]>=threshold:# and mode_val[w0][pump_power][mode]>=threshold1:
+                    
+                    populated_modes.append(mode_val[w0][pump_power][mode])
+            y.append(len(populated_modes))
+
+print((y.count(0)))
+
+#%%
+#print(y.index(max(y)))
+print(max(y))
+
+for i in range(len(y)):
+    y[i]=(y[i]-min(y))/(max(y)-min(y))
+
+#%%
+
+#Formatting Data    
+    
+x=[]
+x.append(training_w0)
+x.append(training_pump)
+
+x=pd.DataFrame(data=x)
+
+
+X=x.T
+
+X=pd.DataFrame.to_numpy(X)
+
+print('Number of [Pump power,cut off freq]:',len(X))
+
+#Splitting the Data into test/train
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.03, random_state=42)
+plt.plot(y_test, color = 'red', label = 'Real data')
+plt.title('Test data')
+print('this',X_test[17])
+
+#%%
+#X_test = X
+#y_test = y
+
+#%%
+# demonstrate data normalization with sklearn
+
+from sklearn.preprocessing import MinMaxScaler
+sc = MinMaxScaler()
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+print(y_train)
+y_train=np.array(y_train)
+#%%
+model = keras.Sequential([
+    keras.layers.Flatten(input_shape=(2,)),
+    keras.layers.Dense(2, input_dim=2, activation='relu'),
+	keras.layers.Dense(26,  activation='relu', kernel_initializer='uniform'),
+    keras.layers.Dense(26,  activation='relu', kernel_initializer='uniform'),
+    #keras.layers.Dense(26,  activation='relu', kernel_initializer='uniform'),
+
+    #keras.layers.Dense(42,  activation='relu', kernel_initializer='uniform'),
+    #keras.layers.Dense(42,  activation='relu', kernel_initializer='uniform'),
+    #keras.layers.Dense(49,  activation='relu', kernel_initializer='uniform'),
+    keras.layers.Dense(1,activation='sigmoid'),
+])
+
+sgd = keras.optimizers.SGD(lr=0.001)
+model.compile(loss='mse', optimizer='adam',metrics=['mse'])
+
+model.fit(X_train, y_train, epochs=10, batch_size=10)
+
+#%%
+y_pred=model.predict(X_test)
+print(y_pred)
+
+
+#%%
+import math
+y_pred = [int(y_pred[i][0]*13) for i in range(len(X_test))]
+y_test = [int(y_test[i]*13) for i in range(len(X_test))]
+#%%
+plt.plot(y_pred,color='k')
+plt.plot(y_test,color='r')
+print(y_test)
+#%%
+plt.hist(y_test,bins=100,align='mid')
+plt.xlabel("w")
+#%%
+'''
+p_p=X_test[:,1]
+w0_s=X_test[:,0]
+
+y=y_pred
+yy=[]
+"""
+for i in range(len(y)):
+    print(y[i][0])
+    yy.append(y[i][0])
+fig=plt.figure()
+ax=fig.add_subplot(111,projection='3d')
+ax.scatter(w0_s,p_p,yy)
+"""
+print('len1',len(p_p))
+
+#Oscars a genius
+tello = w0_s
+w0_s = []
+for i in np.arange(0,len(tello),129):
+    w0_s.append(tello[i])
+
+p_p = [0.000000000000000000e+00,
+8.331431622445082263e-08,
+1.885788652837824780e-07,
+3.215767195638674586e-07,
+4.896145765743675137e-07,
+7.019241776692583468e-07,
+9.701694857146656222e-07,
+1.309087485264837252e-06,
+1.737297809822113098e-06,
+2.278325675857015576e-06,
+2.961894322009844974e-06,
+3.825557958095213719e-06,
+4.916764935615700253e-06,
+6.295464487198648434e-06,
+8.037400245210546399e-06,
+1.023827148039490939e-05,
+1.301899067258273689e-05,
+1.653232625632214658e-05,
+2.097129548365280754e-05,
+2.657976849499440428e-05,
+3.366586616949040437e-05,
+4.261888781209366211e-05,
+5.393069865848076677e-05,
+6.822275219441249500e-05,
+8.628023185419466420e-05,
+1.090951877906292500e-04,
+1.379210385842350329e-04,
+1.743414321317965766e-04,
+2.203572488255226231e-04,
+2.784965268436309345e-04,
+3.519533486787144376e-04,
+4.447633191160935053e-04,
+5.620252751523293743e-04,
+7.101814082557419798e-04,
+8.973711884549834955e-04,
+1.133878534300615743e-03,
+1.432696795529452656e-03,
+1.810242587710074284e-03,
+2.287257695846769967e-03,
+2.889948596138421436e-03,
+3.651426199464709657e-03,
+4.613524913891873559e-03,
+5.829100962693631663e-03,
+7.364936223943591848e-03,
+9.305407124159080501e-03,
+1.175712014936893153e-02,
+1.485476864145203642e-02,
+1.876853264312731626e-02,
+2.371342832769499781e-02,
+2.996112065681586639e-02,
+3.785484823557436901e-02,
+4.782828031340212449e-02,
+6.042934190548305412e-02,
+7.635031595015727424e-02,
+9.646587626854243036e-02,
+1.218811407986638146e-01,
+1.539923850748510792e-01,
+1.945637514575580262e-01,
+2.458241684006813033e-01,
+3.105898043518244278e-01,
+3.924187837144028634e-01,
+4.958066647285334638e-01,
+6.264334185247599773e-01,
+7.914754779998722789e-01,
+9.999999999999998890e-01,
+3.922448194822114973e-08,
+1.328729946302352940e-07,
+2.511944176974544427e-07,
+4.006891481069918580e-07,
+5.895701963641941249e-07,
+8.282143966848735595e-07,
+1.129732494303356260e-06,
+1.510689429646029782e-06,
+1.992014390674788425e-06,
+2.600150630276106862e-06,
+3.368508217894206405e-06,
+4.339299537348118279e-06,
+5.565858370258990397e-06,
+7.115569971963420062e-06,
+9.073573113775877967e-06,
+1.154743747610686058e-05,
+1.467307336121897707e-05,
+1.862219839614823996e-05,
+2.361177143496226771e-05,
+2.991591194443231320e-05,
+3.788095970583106402e-05,
+4.794450218970513122e-05,
+6.065941493832033982e-05,
+7.672423569740772348e-05,
+9.702154100528033378e-05,
+1.226664335900886184e-04,
+1.550678043982258965e-04,
+1.960057348954793684e-04,
+2.477292920042750615e-04,
+3.130800883804216108e-04,
+3.956483962408708071e-04,
+4.999703913960263464e-04,
+6.317773637702945189e-04,
+7.983105856534892381e-04,
+1.008719136060429568e-03,
+1.274562537057029408e-03,
+1.610445816119380471e-03,
+2.034821883874848338e-03,
+2.571005308623902381e-03,
+3.248453182855307389e-03,
+4.104383450590535880e-03,
+5.185819603972058496e-03,
+6.552174081580501921e-03,
+8.278512296409913998e-03,
+1.045967661417668629e-02,
+1.321549684698611338e-02,
+1.669737351886272855e-02,
+2.109659557762498527e-02,
+2.665484951539864519e-02,
+3.367749725268259081e-02,
+4.255035225249091668e-02,
+5.376087551847379131e-02,
+6.792495595254581520e-02,
+8.582074634367099775e-02,
+1.084314138849748477e-01,
+1.369991538668258180e-01,
+1.730934339750894169e-01,
+2.186972184313137890e-01,
+2.763159089964605797e-01,
+3.491149878893309300e-01,
+4.410939245098746131e-01,
+5.573059001352222985e-01,
+7.041354219252141666e-01,
+8.896490779238074298e-01]
+print('len2',len(p_p))
+
+oscar=0
+lists=[]
+#print(p_p)
+for i in range(105):
+    lists.append([])
+    for j in range(129):
+        lists[i].append(y_pred[oscar][0])
+        oscar+=1
+
+#p_p,w0_s=np.meshgrid(p_p,w0_s)
+#print(lists)
+plt.contourf(w0_s,p_p, lists, 20, cmap='RdGy')
+
+plt.xlabel('w0_s')
+plt.ylabel('p_p')
+plt.title('colour means no of modes condensed')
+plt.colorbar()
+
+
+
+#%%
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import numpy as np
+
+p_p=X_test[:,1]
+w0_s=X_test[:,0]
+
+y=y_pred
+yy=[]
+for i in range(len(y)):
+    yy.append(y[i][0])
+print(yy)
+#ax.plot_trisurf(w0_s,p_p,yy,cmap=plt.cm.plasma)
+#ax.contour_surf(w0_s,p_p,yy,cmap=plt.cm.plasma)
+fig, ax = plt.subplots(1,1,sharex = True, sharey = True)
+ax.tricontourf(p_p,w0_s,yy,10)
+ax.plot(p_p,w0_s)
+
+ax.colorbar()
+'''
+
+#%%
+y_test=[y_test[i]/13 for i in range(len(y_test))]
+print(y_test)
+#%%
+p_p=X_test[:,1]
+w0_s=X_test[:,0]#np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])#X_test[:,0]
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.interpolate
+y=y_pred
+
+yy=np.array(y)
+
+y = p_p
+x = np.array([1/(w0_s[i]*(600.25-500)+500) for i in range(len(w0_s))]) 
+#x=np.array(w0_s)
+z = yy
+
+z=np.array([int(z[i]) for i in range(len(z))])
+print(z)
+nInterp = 200
+xi, yi = np.linspace(x.min(), x.max(), nInterp), np.linspace(y.min(), y.max(), nInterp)
+xi, yi = np.meshgrid(xi, yi)
+
+zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
+
+plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
+       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto') 
+
+plt.xlabel(r"$\omega_{0}$")
+plt.ylabel(r"$\Gamma_{\uparrow}$",rotation=0)
+plt.yscale("log")
+plt.title(r"Variation of $N^{o}$ condensed modes with $\Gamma_{\uparrow}$ and $\lambda_{0}$")
+cb=plt.colorbar()
+cb.set_label(r"$N^{o}$ condensed modes")
+plt.show()
+print(min(y_test))
+#%%
+p_p=X_test[:,1]
+w0_s=X_test[:,0]
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.interpolate
+yp=y_pred
+yy=[]
+for i in range(len(y)):
+    yy.append((abs(yp[i]-y_test[i]))/15)
+
+yy=np.array(yy)
+
+y = p_p
+x = np.array([w0_s[i]*(600.25-500)+500 for i in range(len(w0_s))]) 
+z = yy
+
+nInterp = 200
+xi, yi = np.linspace(x.min(), x.max(), nInterp), np.linspace(y.min(), y.max(), nInterp)
+xi, yi = np.meshgrid(xi, yi)
+
+zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
+
+plt.imshow(zi, vmin=z.min(), vmax=.4, origin='lower',
+       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto') 
+
+plt.xlabel(r"$\omega_{0}$")
+plt.ylabel(r"$\Gamma_{\uparrow}$",rotation=0)
+plt.title(r"Variation of output error with $\Gamma_{\uparrow}$ and $\omega_{0}$")
+cb=plt.colorbar()
+cb.set_label("Error")
+plt.show()
+print(y_pred)
+#%%
+p_p=X_test[:,1]
+w0_s=X_test[:,0]#np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.interpolate
+yy=y_test
+print(y_test)
+
+yy=np.array(yy)
+y = p_p
+x = np.array([w0_s[i]*(600.25-500)+500 for i in range(len(w0_s))]) 
+z = yy
+
+z=np.array(z)
+nInterp = 200
+xi, yi = np.linspace(x.min(), x.max(), nInterp), np.linspace(y.min(), y.max(), nInterp)
+xi, yi = np.meshgrid(xi, yi)
+
+zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
+
+plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
+       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto') 
+
+plt.xlabel(r"$\omega_{0}$")
+
+plt.ylabel(r"$\Gamma_{\uparrow}$",rotation=0)
+plt.title(r"Variation of output error with $\Gamma_{\uparrow}$ and $\omega_{0}$")
+#plt.yscale("log")
+cb=plt.colorbar()
+cb.set_label("# condensed modes")
+plt.show()
+#%%
+from matplotlib import colors
+cmap = colors.ListedColormap(['b', 'g','#0f0f0f35', 'r', 'c', '#0f0f0f11', 'y', 'k', '#0f0f0f81','orchid','brown' ,'#0f0f0f','#0f0f0f80'])#,(0.1, 0.2, 0.5)])#,'tab:pink', (0.3,0.2,0.1)])
+bounds=[0,1,2,3,4,5,6,7,8,9,10,11,12]#[3584, 3968, 4064, 12288, 15360, 15872, 16256, 16352, 16384, 20352, 28672, 31744, 32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]
+norm = colors.BoundaryNorm(bounds, cmap.N)
+# tell imshow about color map so that only set colors are used
+
+#img = plt.imshow(zi, interpolation='nearest', origin='lower',
+ #                   cmap=cmap, norm=norm)
+ 
+#yyy=y_test
+yyy=[y_pred[i][0] for i in range(len(y_pred))]
+w0_s=X_test[:,0]#np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])
+
+y = p_p
+x = w0_s
+z = np.array([yyy[i]*13 for i in range(len(yyy))])
+
+z=np.array(z)
+print(max(z))
+
+nInterp = 200
+xi, yi = np.linspace(p_p.min(), p_p.max(), nInterp), np.linspace(w0_s.min(), w0_s.max(), nInterp)
+xi, yi = np.meshgrid(xi, yi)
+
+zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
+
+#zi=np.array([int(z[i]) for i in range(len(z))])
+plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
+       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto',cmap=cmap, norm=norm) 
+#plt.xscale("log")
+#plt.yscale("log")
+plt.colorbar()
+#%%
+'''
+p_p=X_test[:,1]
+w0_s=X_test[:,0]
+laserw=[]
+laserp=[]
+becw=[]
+becp=[]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.03, random_state=42)
+y_test=[y_test[i]*13 for i in range(len(y_test))]
+
+print(y_test)
+for i in range(len(y_test)):
+    if y_test[i] == 13:
+        becw.append(w0_s[i])
+        becp.append(p_p[i])
+    else:
+        laserw.append(w0_s[i])
+        laserp.append(p_p[i])
+#plt.plot(laserw,laserp,'o',color='b')
+plt.plot(becw,becp,'o',color='r')
+#plt.plot(p_p,w0_s)
+'''
+#%%
+y_pred=model.predict(X_test)
+
+y_pred=[int(y_pred[i]*13) for i in range(len(y_pred))]
+p_p=X_test[:,1]
+w0_s=X_test[:,0]
+laserw=[]
+laserp=[]
+becw=[]
+becp=[]
+otherw=[]
+otherp=[]
+for i in range(len(y_pred)):
+    if y_pred[i] == 1:
+        becw.append(w0_s[i])
+        becp.append(p_p[i])
+    if y_pred[i]==0:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+        laserw.append(w0_s[i])
+        laserp.append(p_p[i])
+    else:
+        otherw.append(w0_s[i])
+        otherp.append(p_p[i])
+
+plt.plot([1/laserw[i] for i in range(len(laserw))],laserp,'o',color='b')
+
+plt.plot([1/becw[i] for i in range(len(becw))],becp,'o',color='r')
+#plt.plot([1/otherw[i] for i in range(len(otherw))],otherp,'o',color='g')
+#plt.yscale("log")
+
+#plt.plot(p_p,w0_s)
+#%%
+from matplotlib import colors
+cmap = colors.ListedColormap(['b', 'g','#0f0f0f35', 'r', 'c', '#0f0f0f11', 'y', 'k', '#0f0f0f81','orchid','brown' ,'#0f0f0f','#0f0f0f80'])#,(0.1, 0.2, 0.5)])#,'tab:pink', (0.3,0.2,0.1)])
+bounds=[0,1,2,3,4,5,6,7,8,9,10,11,12]#[3584, 3968, 4064, 12288, 15360, 15872, 16256, 16352, 16384, 20352, 28672, 31744, 32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]
+norm = colors.BoundaryNorm(bounds, cmap.N)
+# tell imshow about color map so that only set colors are used
+
+#img = plt.imshow(zi, interpolation='nearest', origin='lower',
+ #                   cmap=cmap, norm=norm)
+ 
+#yyy=y_test
+yyy=[y_pred[i][0] for i in range(len(y_pred))]
+
+w0_s=np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])
+y=[]
+x=[]
+z=[]
+for i in range(len(yyy)):
+    if w0_s[i] != 0:
+        y.append(p_p[i])
+        x.append(w0_s[i])
+        z.append(yyy[i])
+        
+#x = np.array([1/w0_s[i] for i in range(len(w0_s))])
+#z = np.array([yyy[i]*13 for i in range(len(yyy))])
+
+y=np.array(y)
+x=np.array(x)
+z=np.array(z)
+
+nInterp = 200
+xi, yi = np.linspace(p_p.min(), p_p.max(), nInterp), np.linspace(w0_s.min(), w0_s.max(), nInterp)
+xi, yi = np.meshgrid(xi, yi)
+
+zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
+
+#zi=np.array([int(z[i]) for i in range(len(z))])
+plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
+       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto',cmap=cmap, norm=norm) 
+#plt.xscale("log")
+#plt.yscale("log")
+plt.colorbar()
+#%%
+p_p=X_test[:,1]
+w0_s=X_test[:,0]#np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])
+x=w0_s
+y=p_p
+laserw=[]
+laserp=[]
+becw=[]
+becp=[]
+print(min(y_pred))
+#y_test=[y_test[i]*]
+for i in range(len(y_test)):
+    if y_test[i] == 1:
+        becw.append(x[i])
+        becp.append(y[i])
+    #if y_pred[i]==0:
+    if y_test[i]==0:
+        laserw.append(x[i])
+        laserp.append(y[i])
+#plt.plot(laserp,laserw,'o',color='b')
+plt.plot([1/becw[i] for i in range(len(becw))],becp,'o',color='r')
+plt.plot([1/laserw[i] for i in range(len(laserw))],laserp,'o',color='b')
+
+
+plt.yscale("log")
+#%%
+p_p=X_test[:,1]
+w0_s=X_test[:,0]#np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])#X_test[:,0]
+
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.interpolate
+y=y_pred
+yy=[]
+for i in range(len(y)):
+    yy.append(abs(y[i]-y_test[i])/5)
+
+yy=np.array(yy)
+
+y = p_p
+x = np.array([w0_s[i]*(600.25-500)+500 for i in range(len(w0_s))]) 
+z = yy
+
+z=np.array([int(z[i]) for i in range(len(z))])
+print(z)
+nInterp = 200
+xi, yi = np.linspace(x.min(), x.max(), nInterp), np.linspace(y.min(), y.max(), nInterp)
+xi, yi = np.meshgrid(xi, yi)
+
+zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
+
+plt.imshow(zi, vmin=z.min(), vmax=0.4, origin='lower',
+       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto') 
+
+plt.xlabel(r"$\omega_{0}$")
+plt.ylabel(r"$\Gamma_{\uparrow}$",rotation=0)
+#plt.yscale("log")
+plt.title(r"Variation of $N^{o}$ condensed modes with $\Gamma_{\uparrow}$ and $\omega_{0}$")
+cb=plt.colorbar()
+cb.set_label(r"$N^{o}$ condensed modes")
+plt.show()
+print(min(y_test))
+#%%
+for i in range(5):
+    
+    order = 3  # this is/ an order of approximation, which is not relevant at the moment
+    modes = 15 # (or 21) the number of modes
+    mode_val=[]
+    pump_poww=[]
+    for w0 in np.arange(570.0,600.5,0.25):
+        alldata=np.load(r"C:\Users\roryp\OneDrive\Documents\Yr3project\Data_v2"+"\\threshData_{}_{}_{}.npy".format(w0,modes,order),encoding='bytes',allow_pickle=True).item(0)
+        mode_val.append(list(alldata.values())[1])
+        pump_poww.append(list(alldata.values())[0])
+    training_w0=[]
+    training_pump=[]
+    
+    for i in range(122):
+        if len(mode_val[i]) == 129:
+            for j in range(129):
+                training_w0.append(np.arange(570.0,600.5,0.25)[i])
+                training_pump.append(pump_poww[i][j])
+    print('number of training w0s',len(training_w0))
+    
+    
+    print(len(mode_val))
+    print(training_pump[129])
+    
+    
+    #Finding no of condensed modes for each pump power.
+    
+    threshold=1e12
+    y=[]
+    # Find output for 40 w and 33 pump_pow
+    for w0 in range(122):
+        
+        for pump_power in range(129):
+            if len(mode_val[w0]) == 129:
+                populated_modes=[]
+                for mode in range(len(mode_val[w0][pump_power])):
+                    threshold1=(max(mode_val[w0][pump_power])+min(mode_val[w0][pump_power]))/2
+                    if mode_val[w0][pump_power][mode]>=threshold:# and mode_val[w0][pump_power][mode]>=threshold1:
+                        
+                        populated_modes.append(mode_val[w0][pump_power][mode])
+                y.append(len(populated_modes))
+    
+    print((y.count(0)))
+    
+    
+    #print(y.index(max(y)))
+    print(max(y))
+    
+    for i in range(len(y)):
+        y[i]=(y[i]-min(y))/(max(y)-min(y))
+    
+    
+    #Formatting Data    
+        
+    x=[]
+    x.append(training_w0)
+    x.append(training_pump)
+    
+    x=pd.DataFrame(data=x)
+    
+    
+    X=x.T
+    
+    X=pd.DataFrame.to_numpy(X)
+    
+    print('Number of [Pump power,cut off freq]:',len(X))
+    
+    #Splitting the Data into test/train
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.03, random_state=42)
+    plt.plot(y_test, color = 'red', label = 'Real data')
+    plt.title('Test data')
+    print('this',X_test[17])
+    
+    # demonstrate data normalization with sklearn
+    
+    from sklearn.preprocessing import MinMaxScaler
+    sc = MinMaxScaler()
+    X_train = sc.fit_transform(X_train)
+    X_test = sc.transform(X_test)
+    print(y_train)
+    y_train=np.array(y_train)
+    
+    model = keras.Sequential([
+        keras.layers.Flatten(input_shape=(2,)),
+        keras.layers.Dense(2, input_dim=2, activation='relu'),
+    	keras.layers.Dense(26,  activation='relu', kernel_initializer='uniform'),
+        keras.layers.Dense(26,  activation='relu', kernel_initializer='uniform'),
+        #keras.layers.Dense(26,  activation='relu', kernel_initializer='uniform'),
+    
+        #keras.layers.Dense(42,  activation='relu', kernel_initializer='uniform'),
+        #keras.layers.Dense(42,  activation='relu', kernel_initializer='uniform'),
+        #keras.layers.Dense(49,  activation='relu', kernel_initializer='uniform'),
+        keras.layers.Dense(1,activation='sigmoid'),
+    ])
+    
+    sgd = keras.optimizers.SGD(lr=0.001)
+    model.compile(loss='mse', optimizer='adam',metrics=['mse'])
+    
+    model.fit(X_train, y_train, epochs=10, batch_size=10)
+    
+    y_pred=model.predict(X_test)
+    print(y_pred)
+    
+    import math
+    y_pred = [int(y_pred[i][0]*13) for i in range(len(X_test))]
+    y_test = [int(y_test[i]*13) for i in range(len(X_test))]
+    
+    plt.plot(y_pred,color='k')
+    plt.plot(y_test,color='r')
+    print(y_test)
+    
+    plt.hist(y_test,bins=100,align='mid')
+    plt.xlabel("w")
+    
+    y_test=[y_test[i]/13 for i in range(len(y_test))]
+    print(y_test)
+    
+    p_p=X_test[:,1]
+    w0_s=X_test[:,0]#np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])#X_test[:,0]
+    
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import scipy.interpolate
+    y=y_pred
+    
+    yy=np.array(y)
+    
+    y = p_p
+    x = np.array([1/(w0_s[i]*(600.25-500)+500) for i in range(len(w0_s))]) 
+    #x=np.array(w0_s)
+    z = yy
+    
+    z=np.array([int(z[i]) for i in range(len(z))])
+    print(z)
+    nInterp = 200
+    xi, yi = np.linspace(x.min(), x.max(), nInterp), np.linspace(y.min(), y.max(), nInterp)
+    xi, yi = np.meshgrid(xi, yi)
+    
+    zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
+    plt.figure()
+    plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
+           extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto') 
+    
+    plt.xlabel(r"$\omega_{0}$")
+    plt.ylabel(r"$\Gamma_{\uparrow}$",rotation=0)
+    plt.yscale("log")
+    plt.title(r"Variation of $N^{o}$ condensed modes with $\Gamma_{\uparrow}$ and $\lambda_{0}$")
+    cb=plt.colorbar()
+    cb.set_label(r"$N^{o}$ condensed modes")
+    plt.show()
+    print(min(y_test))
