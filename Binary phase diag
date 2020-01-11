@@ -43,7 +43,7 @@ for i in range(122):
 print(mode_val[100][100])
 
 #%%
-threshold=1
+threshold=1e10
 y=[]
 # Find output for 40 w and 33 pump_pow
 for w0 in range(122):
@@ -116,7 +116,7 @@ model.fit(X_train, y_train, epochs=10, batch_size=10)
 preds = model.predict(X_test)
 preds[preds>=0.5] = 1
 preds[preds<0.5] = 0
-
+#%%
 
 def convert(list): 
       
@@ -190,7 +190,8 @@ w0_s=X_test[:,0]
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.interpolate
-y_=yy
+y_=y_test1
+yy=y_test1
 print(yy.count(16384))
 y = p_p
 x = w0_s
@@ -280,10 +281,10 @@ otherw=[]
 otherp=[]
 otherz=[]
 print(sc.inverse_transform(X_train))
-yy=[]
-for i in range(len(preds)):
-    yy.append(convert(preds[i]))
-#yy=y_test1
+#yy=[]
+#for i in range(len(y_test1)):
+#    yy.append(convert(y_test1[i]))
+yy=y_test1
 for i in range(len(yy)):
     if yy[i] in [16384]:
         becw.append(w0_s[i])
@@ -335,7 +336,7 @@ for i in range(len(yy)):
         otherp.append(p_p[i])
         otherz.append(1)
         
-plt.plot([1/laserw[i] for i in range(len(laserw))],laserp,'o',color='b')
+plt.plot([1/laserw[i] for i in range(len(laserw))],laserp,'s',color='r',markersize=10)
 plt.plot([1/otherw[i] for i in range(len(otherw))],otherp,'s',color='g',markersize=10)
 plt.plot([1/becw[i] for i in range(len(becw))],becp,'s',color='r',markersize=10)
 plt.plot([1/randw[i] for i in range(len(randw))],randp,'s',color='k',markersize=10)
