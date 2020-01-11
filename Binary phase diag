@@ -1,14 +1,12 @@
+#Import packages
+
 from __future__ import absolute_import, division, print_function, unicode_literals
 import pandas as pd
 import seaborn as sns
 from math import floor, ceil
 from pylab import rcParams
 from sklearn.model_selection import train_test_split
-# TensorFlow and tf.keras
-import tensorflow as tf
 from tensorflow import keras
-import matplotlib.pyplot as plt
-import numpy as np
 from sklearn.utils import class_weight
 import pandas
 from keras.models import Sequential
@@ -20,8 +18,15 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import LabelEncoder
 from sklearn.pipeline import Pipeline
 from tensorflow.keras.callbacks import TensorBoard
-NAME = "Cats-vs-dogs-CNN"
-tensorboard = TensorBoard(log_dir="logs\{}".format(NAME))
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import colors
+import scipy as scipy
+
+
+#%%
+#Importing the data (v2)
 
 order = 3  # this is an order of approximation, which is not relevant at the moment
 modes = 15 # (or 21) the number of modes
@@ -29,7 +34,7 @@ mode_val=[]
 pump_poww=[]
 for w0 in np.arange(570.0,600.5,0.25):
 #wav0 = 585.0 # the cutoff-frequency of the cavity which decides the thermalisation
-    alldata=np.load(r"C:\Users\roryp\OneDrive\Documents\Yr3project\Data_v2"+"\\threshData_{}_{}_{}.npy".format(w0,modes,order),encoding='bytes',allow_pickle=True).item(0)
+    alldata=np.load(r"H:\PythonShite\Project Project\Data_v2"+"\\threshData_{}_{}_{}.npy".format(w0,modes,order),encoding='bytes',allow_pickle=True).item(0)
     mode_val.append(list(alldata.values())[1])
     pump_poww.append(list(alldata.values())[0])
 training_w0=[]
@@ -40,10 +45,12 @@ for i in range(122):
         for j in range(129):
             training_w0.append(np.arange(570.0,600.5,0.25)[i])
             training_pump.append(pump_poww[i][j])
-print(mode_val[100][100])
+
 
 #%%
-threshold=1e10
+#Classifying whether each mode is condensed.
+            
+threshold=1e6
 y=[]
 # Find output for 40 w and 33 pump_pow
 for w0 in range(122):
@@ -54,52 +61,49 @@ for w0 in range(122):
             populated_modes=[0 for i in range(len(mode_val[w0][pump_power]))]
             for mode in range(len(mode_val[w0][pump_power])):
                 threshold1=(max(mode_val[w0][pump_power])+min(mode_val[w0][pump_power]))/2
-                if mode_val[w0][pump_power][mode]>=threshold:# and mode_val[w0][pump_power][mode]>=threshold1:
+                if mode_val[w0][pump_power][mode]>=threshold and mode_val[w0][pump_power][mode]>=threshold1:
                     
                     populated_modes[mode]=1
     
     
             y.append(populated_modes)
             
-    #y.append(w)
-for j in range(len(y)):
-    if y[j][0]==0:
-        print(y[j])
 
 #%%
-#training_pump=np.ravel(pump_poww)
-#print(training_pump[0])
+#Putting Data into the right format
 
 x=[]
 x.append(training_w0)
 x.append(training_pump)
-#x.append(y)
 x=pd.DataFrame(data=x)
 
 X=x.T
-#print((X))
 X=pd.DataFrame.to_numpy(X)
 y=pd.DataFrame(y)
 y=pd.DataFrame.to_numpy(y)
-print(y)
 
 
 #%%
+#Splitting the data into test and train.
+
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-#print(y_train.count(0),y_train.count(1))
-plt.plot(y_test, color = 'red', label = 'Real data')
+
+
 #%%
-# demonstrate data normalization with sklearn
+#Normalising p_p and w0
+
 from sklearn.preprocessing import MinMaxScaler
 sc = MinMaxScaler()
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
-print(y_train)
+
+
 #%%
+#Training the neural network using the training data
 
 model = Sequential()
 #model.add(Flatten(input_shape=(2,)))
-model.add(Dense(30, input_dim=2, activation='relu'))
+model.add(Dense(2, input_dim=2, activation='relu'))
 #model.add(Dropout(0.1))
 model.add(Dense(49, activation='relu'))
 model.add(Dense(49, activation='relu'))
@@ -116,63 +120,34 @@ model.fit(X_train, y_train, epochs=10, batch_size=10)
 preds = model.predict(X_test)
 preds[preds>=0.5] = 1
 preds[preds<0.5] = 0
+
+
 #%%
+#converting the outputs into binary numbers
 
 def convert(list): 
-      
-    # Converting integer list to string list 
+    '''
+    Converting integer list to string list 
+    '''
     s = [str(int(i)) for i in list] 
       
     # Join list items using join() 
     res = int("".join(s)) 
     #print(type(res))
     return(int(str(res),2)) 
-print(preds[130])
 convert(preds[130]) 
 
 yy=[]
 for i in range(len(preds)):
     yy.append(convert(preds[i]))
-#print(yy)
 y_test1=[]
 for i in range(len(y_test)):
     y_test1.append(convert(y_test[i]))
-print(bin(15840)[2:].zfill(15))
+
 
 #%%
-print((list(set(yy))))
-print(bin(448)[2:].zfill(15))
-#%%
-from matplotlib import colors
-import scipy as scipy
-cmap = colors.ListedColormap(['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080'])#, '#ffffff', '#000000'])#,"red", "orange", "gold", "limegreen", "k", 
-       # "#550011", "purple", "seagreen"])
-bounds=sorted(list(set(yy)))#[0, 16384, 16408, 16768, 16792, 17792, 19456, 19840, 28672, 31744, 31768, 31769, 31833, 31864, 31865, 32128, 32136, 32152, 32256, 32280, 32345, 32376, 32377, 32640, 32704, 32736, 32737, 32753, 32760, 32761]
-
-norm = colors.BoundaryNorm(bounds, cmap.N)
-
-p_p=X_test[:,1]
-w0_s=[]
-for i in range(len(X_test[:,0])):
-    w0_s.append(1/(X_test[:,0][i]*(600.25-500)+500))
-w0_s=np.array(w0_s)
-y = p_p
-x = w0_s
-z = np.array(yy)
-
-print(len(['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#bcf60c', '#fabebe', '#008080', '#e6beff', '#9a6324', '#fffac8', '#800000', '#aaffc3', '#808000', '#ffd8b1', '#000075', '#808080', '#ffffff', '#000000']))
-nInterp = 200
-xi, yi = np.linspace(x.min(), x.max(), nInterp), np.linspace(y.min(), y.max(), nInterp)
-xi, yi = np.meshgrid(xi, yi)
-zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
-
-plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
-       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto',cmap=cmap, norm=norm) 
-plt.yscale("log")
-#plt.xscale("log")
-plt.colorbar()
-#%%
-
+#Gets error by finding the number of correct predictions by the neural network over the total number of predictions
+    
 y_pred = model.predict(X_test)
 correct=[]
 wrong=[]
@@ -183,67 +158,22 @@ for i in range(len(preds)):
         else:
             wrong.append(1)
 print(len(correct)/(len(preds)*len(preds[0])))            
-#%%
-p_p=X_test[:,1]
-w0_s=X_test[:,0]
 
-import numpy as np
-import matplotlib.pyplot as plt
-import scipy.interpolate
-y_=y_test1
-yy=y_test1
-print(yy.count(16384))
-y = p_p
-x = w0_s
-z = np.array(y_)
-zz=z
-print(zz)
-for i in range(len(zz)):
-    if yy[i]==16384:
-        z[i]=1
-    if yy[i] ==31744:
-        z[i]=2
-    if yy[i]==28672:
-        z[i]=3
-    else:
-        z[i]=0
-
-nInterp = 200
-xi, yi = np.linspace(p_p.min(), p_p.max(), nInterp), np.linspace(w0_s.min(), w0_s.max(), nInterp)
-xi, yi = np.meshgrid(xi, yi)
-zi = scipy.interpolate.griddata((x, y), z, (xi, yi), method='linear')
-
-plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
-       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto') 
-plt.yscale("log")
-plt.xlabel("X")
-plt.ylabel("Y")
-plt.colorbar()
-plt.show()
 
 
 #%%
+#Unscales w0 and prepares values for the next cell
 
-print(y_test1)
-
-#%%
-vals=list(sorted(list(set(y_test1))))
-print('l',
-      (vals))
-#print([bin(vals[i] for i in range(len(vals)))])
-for i in range(len(vals)):
-    print(bin(vals[i])[2:].zfill(15))
-
-#%%
-bin(19456)[2:].zfill(15)
-#%%
 p_p=X_test[:,1]
 w0_s=[]
 for i in range(len(X_test[:,0])):
     w0_s.append(X_test[:,0][i]*(600.25-500)+500)
 w0_s=np.array(w0_s)
 
+
 #%%
+#plot the predicting a phase diagram for the neural network
+
 laserw=[]
 laserp=[]
 laserz=[]
@@ -281,10 +211,10 @@ otherw=[]
 otherp=[]
 otherz=[]
 print(sc.inverse_transform(X_train))
-#yy=[]
-#for i in range(len(y_test1)):
-#    yy.append(convert(y_test1[i]))
-yy=y_test1
+yy=[]
+for i in range(len(preds)):
+    yy.append(convert(preds[i]))
+#yy=y_test1
 for i in range(len(yy)):
     if yy[i] in [16384]:
         becw.append(w0_s[i])
@@ -336,7 +266,7 @@ for i in range(len(yy)):
         otherp.append(p_p[i])
         otherz.append(1)
         
-plt.plot([1/laserw[i] for i in range(len(laserw))],laserp,'s',color='r',markersize=10)
+plt.plot([1/laserw[i] for i in range(len(laserw))],laserp,'o',color='b')
 plt.plot([1/otherw[i] for i in range(len(otherw))],otherp,'s',color='g',markersize=10)
 plt.plot([1/becw[i] for i in range(len(becw))],becp,'s',color='r',markersize=10)
 plt.plot([1/randw[i] for i in range(len(randw))],randp,'s',color='k',markersize=10)
@@ -362,75 +292,4 @@ plt.tick_params(labelsize=15)
 print(list(set(yy)))
 for i in range(len(list(set(yy)))):
     print(bin(list(set(yy))[i])[2:].zfill(15))
-    #%%
-#for i in range(len(list(set(yy)))):
-#    x=[]
-#    y=[]
-#    for j in range(len(yy)):
-#        if yy[j]==list(set(yy))[i]:
-#            x.append(w0_s[j])
-#            y.append(p_p[j])
-#    plt.plot([1/x[i] for i in range(len(x))],y,'o',color='#FF{}'.format(round(np.random.uniform()*1000)))
-#    plt.yscale("log")
-        
-#print([y_test[i] for i in range(len(y_test))])
-#%%
-#print(becz)
-#x=list([[list(becw)]])
-#x.append([otherw[i] for i in range(len(otherw))])
-#x.append(randw)
-#x.append(rand1w)
-#x.append(rand2w)
-#x.append(rand5w)
-#
-#y=becp
-#y.append(otherp)
-#y.append(randp)
-#y.append(rand1p)
-#y.append(rand2p)
-#y.append(rand5p)
-#
-#z=[]
-#z.append(otherz)
-#z.append(randz)
-#z.append(rand1z)
-#z.append(rand2z)
-#z.append(rand5z)
-#
-#x=np.array(x)
-#y=np.array(y)
-#z=np.array(z)
-#%%
-z=becz+randz+rand1z+rand2z+rand5z
-x=becw+randw+rand1w+rand2w+rand5w
-y=becp+randp+rand1p+rand2p+rand5p
-x=np.array([1/x[i] for i in range(len(x))])
-#x=np.array(x)
-y=np.array(y)
-z=np.array(z)
-a=[1,2,3]
-b=[4,5,6]
-c=[9,8,7]
-print(min(otherp))
-#%%
-nInterp = 200
-xi, yi = np.linspace(x.min(), x.max(), nInterp), np.linspace(y.min(), y.max(), nInterp)
-xi, yi = np.meshgrid(xi, yi)
-
-zi = scipy.interpolate.griddata((x, y), z, (xi, yi))
-
-plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
-       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto') 
-
-#%%
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-import numpy as np
-#from matplotlib.mlab import griddata
-
-xi = x
-yi = y
-
-#zi = griddata(x, y, z, xi, yi, interp='linear')
-plt.tricontourf([1/becw[i] for i in range(len(becw))],becp,becz)
-plt.tricontourf([1/randw[i] for i in range(len(randw))],randp,randz)
+    
