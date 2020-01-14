@@ -10,8 +10,6 @@ import scipy.interpolate
 import pandas
 from sklearn.preprocessing import MinMaxScaler
 
-
-#%%
 #Import Data 15 modes (from datav2)
 
 order = 3  # this is/ an order of approximation, which is not relevant at the moment
@@ -32,11 +30,9 @@ for i in range(122):
             training_pump.append(pump_poww[i][j])
 print('number of training w0s',len(training_w0))
 
-
-#%%
 #Finding no of condensed modes for each combanation of p_p and w0.
 
-threshold=1e12
+threshold=1e4
 y=[]
 # Find output for 40 w and 33 pump_pow
 for w0 in range(122):
@@ -51,8 +47,6 @@ for w0 in range(122):
                     populated_modes.append(mode_val[w0][pump_power][mode])
             y.append(len(populated_modes))
 
-
-#%%
 #Scaling the lengths to be number of modes condensed/13, because the largest length in the data was 13.
 
 print(max(y))
@@ -60,8 +54,6 @@ print(max(y))
 for i in range(len(y)):
     y[i]=(y[i]-min(y))/(max(y)-min(y))
 
-
-#%%
 #Formatting Data    
     
 x=[]
@@ -77,14 +69,10 @@ X=pd.DataFrame.to_numpy(X)
 
 print('Number of [Pump power,cut off freq]:',len(X))
 
-
-#%%
 #Splitting the Data into test/train
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.03, random_state=42)
 
-
-#%%
 #Plotting the test data
 
 plt.figure()
@@ -93,8 +81,6 @@ plt.title('Test data')
 plt.show()
 print('this',X_test[17])
 
-
-#%%
 #Normalising w0 and p_p
 
 sc = MinMaxScaler()
@@ -103,8 +89,6 @@ X_test = sc.transform(X_test)
 print(y_train)
 y_train=np.array(y_train)
 
-
-#%%
 #Training the neural network using the train data.
 
 model = keras.Sequential([
@@ -125,22 +109,16 @@ model.compile(loss='mse', optimizer='adam',metrics=['mse'])
 
 model.fit(X_train, y_train, epochs=10, batch_size=10)
 
-
-#%%
 #Testing the neural network
 
 y_pred=model.predict(X_test)
 print(y_pred)
 
-
-#%%
 #Denormalising the neural network test data and rounding it to the nearest integer.
 
 y_pred = [round(y_pred[i][0]*13) for i in range(len(X_test))]
 y_test = [round(y_test[i]*13) for i in range(len(X_test))]
 
-
-#%%
 #Plotting the data used to test the neural network, with that the neural network predicts.
 
 plt.figure()
@@ -152,8 +130,6 @@ plt.grid()
 plt.show()
 print(y_test)
 
-
-#%%
 #Plotting a histogram of the instances of each length classification of the test data.
 
 plt.figure()
@@ -163,8 +139,6 @@ plt.ylabel('Number of instances:')
 plt.grid()
 plt.show()
 
-
-#%%
 #Phase plot given by data
 
 p_p=X_test[:,1]
@@ -197,12 +171,10 @@ cb=plt.colorbar()
 cb.set_label("# condensed modes")
 plt.show()
 
-#%%
 #Predicted phase plot by neural network
 
 p_p=X_test[:,1]
 w0_s=X_test[:,0]#np.array([X_test[:,0][i]*(600.25-570)+570 for i in range(len(X_test[:,0]))])#X_test[:,0]
-
 
 y=y_pred
 
@@ -233,8 +205,6 @@ cb.set_label(r"$N^{o}$ condensed modes")
 plt.show()
 print(min(y_test))
 
-
-#%%
 #Difference in Predicted and Data phase plots
 p_p=X_test[:,1]
 w0_s=X_test[:,0]
