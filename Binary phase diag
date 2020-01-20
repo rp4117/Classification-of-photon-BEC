@@ -1,27 +1,21 @@
 #Import packages
-
 from __future__ import absolute_import, division, print_function, unicode_literals
 import pandas as pd
-import seaborn as sns
-from math import floor, ceil
-from pylab import rcParams
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 from tensorflow import keras
 from sklearn.utils import class_weight
-import pandas
 from keras.models import Sequential
 from keras.layers import Dense
 import matplotlib.pyplot as plt
 import numpy as np
 
 #Importing the data (v2)
-
-order = 3  # this is an order of approximation, which is not relevant at the moment
-modes = 15 # (or 21) the number of modes
+order = 3  # this is an order of approximation
+modes = 15 # the number of modes
 mode_val=[]
 pump_poww=[]
-for w0 in np.arange(570.0,600.5,0.25):
-#wav0 = 585.0 # the cutoff-frequency of the cavity which decides the thermalisation
+for w0 in np.arange(570.0,600.5,0.25): # w0 is cut-off wavelength in nm
     alldata=np.load(r"Data_file_path".format(w0,modes,order),encoding='bytes',allow_pickle=True).item(0)
     mode_val.append(list(alldata.values())[1])
     pump_poww.append(list(alldata.values())[0])
@@ -34,8 +28,8 @@ for i in range(122):
             training_w0.append(np.arange(570.0,600.5,0.25)[i])
             training_pump.append(pump_poww[i][j])
 
-#Classifying whether each mode is condensed.
-            
+#Define the threshold to classify condensed modes, chang as necessary
+           
 threshold=1e6
 y=[]
 
@@ -47,16 +41,11 @@ for w0 in range(122):
         if len(mode_val[w0]) == 129:
             populated_modes=[0 for i in range(len(mode_val[w0][pump_power]))]
             for mode in range(len(mode_val[w0][pump_power])):
-                threshold1=(max(mode_val[w0][pump_power])+min(mode_val[w0][pump_power]))/2
-                if mode_val[w0][pump_power][mode]>=threshold and mode_val[w0][pump_power][mode]>=threshold1:
-                    
+                if mode_val[w0][pump_power][mode]>=threshold :
                     populated_modes[mode]=1
-    
-    
             y.append(populated_modes)
-            
-#Putting Data into the right format
 
+#Putting Data into the Pandas dataframe form
 x=[]
 x.append(training_w0)
 x.append(training_pump)
@@ -68,61 +57,48 @@ y=pd.DataFrame(y)
 y=pd.DataFrame.to_numpy(y)
 
 #Splitting the data into test and train.
-
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
 #Normalising p_p and w0
-
-from sklearn.preprocessing import MinMaxScaler
 sc = MinMaxScaler()
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 #Training the neural network using the training data
-
 model = Sequential()
-#model.add(Flatten(input_shape=(2,)))
 model.add(Dense(2, input_dim=2, activation='relu'))
-#model.add(Dropout(0.1))
 model.add(Dense(49, activation='relu'))
 model.add(Dense(49, activation='relu'))
 model.add(Dense(49, activation='relu'))
-#model.add(Dropout(0.1))
 model.add(Dense(15, activation='sigmoid'))
 
-sgd = keras.optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+# Compile the network; use adam optimiser and binary_crossentropy loss function
 model.compile(loss='binary_crossentropy',
               optimizer='adam')
 
-model.fit(X_train, y_train, epochs=10, batch_size=10)
+# Train the model with 10 epochs and a batch size of 100
+model.fit(X_train, y_train, epochs=10, batch_size=100)
 
 preds = model.predict(X_test)
 preds[preds>=0.5] = 1
 preds[preds<0.5] = 0
 
-#converting the outputs into binary numbers
-
+# Define a function to convert binary strings to numbers
 def convert(list): 
-    '''
-    Converting integer list to string list 
-    '''
-    s = [str(int(i)) for i in list] 
-      
-    # Join list items using join() 
-    res = int("".join(s)) 
-    #print(type(res))
-    return(int(str(res),2)) 
-convert(preds[130]) 
+    lis = [str(int(i)) for i in list] 
+    num = int("".join(lis)) 
+    return(int(str(num),2))
 
-yy=[]
+# Convert the network's outputs into binary numbers
+preds_conv=[]
 for i in range(len(preds)):
-    yy.append(convert(preds[i]))
+    preds_conv.append(convert(preds[i]))
 y_test1=[]
 for i in range(len(y_test)):
     y_test1.append(convert(y_test[i]))
 
-#Gets error by finding the number of correct predictions by the neural network over the total number of predictions
-    
+# Find of network by finding the number of correct predictions by the neural network#
+# over the total number of predictions
 y_pred = model.predict(X_test)
 correct=[]
 wrong=[]
@@ -132,18 +108,17 @@ for i in range(len(preds)):
             correct.append(1)
         else:
             wrong.append(1)
+# Print the error
 print(len(correct)/(len(preds)*len(preds[0])))            
 
-#Unscales w0 and prepares values for the next cell
-
+# Defines the test data and uscales w0
 p_p=X_test[:,1]
 w0_s=[]
 for i in range(len(X_test[:,0])):
     w0_s.append(X_test[:,0][i]*(600.25-500)+500)
 w0_s=np.array(w0_s)
 
-#plot the predicting a phase diagram for the neural network
-
+# Initialise lists for different phases (converted numbers)
 laserw=[]
 laserp=[]
 laserz=[]
@@ -180,54 +155,50 @@ becz=[]
 otherw=[]
 otherp=[]
 otherz=[]
-print(sc.inverse_transform(X_train))
-yy=[]
-for i in range(len(preds)):
-    yy.append(convert(preds[i]))
 
-#yy=y_test1
-for i in range(len(yy)):
-    if yy[i] in [16384]:
+# Populate lists with points corresponding to certain phases (converted numbers)
+for i in range(len(preds_conv)):
+    if preds_conv[i] in [16384]:
         becw.append(w0_s[i])
         becp.append(p_p[i])
         becz.append(0)
-    if yy[i]==16768:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==16768:
         rand1w.append(w0_s[i])
         rand1p.append(p_p[i])
         rand1z.append(3)
-    if yy[i]==31744:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==31744:
         randw.append(w0_s[i])
         randp.append(p_p[i])
         randz.append(2)
-    if yy[i]==28672:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==28672:
         rand2w.append(w0_s[i])
         rand2p.append(p_p[i])
         rand2z.append(4)
-    if yy[i]==15864:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==15864:
         rand3w.append(w0_s[i])
         rand3p.append(p_p[i])
         rand3z.append(3)
-    if yy[i]==3968:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==3968:
         rand4w.append(w0_s[i])
         rand4p.append(p_p[i])
         rand4z.append(6)
-    if yy[i]==19456:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==19456:
         rand5w.append(w0_s[i])
         rand5p.append(p_p[i])
         rand5z.append(5)
-    if yy[i]==29696:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==29696:
         rand6w.append(w0_s[i])
         rand6p.append(p_p[i])
         rand6z.append(8)
-    if yy[i]==12160:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==12160:
         rand7w.append(w0_s[i])
         rand7p.append(p_p[i])
         rand7z.append(8)
-    if yy[i]==20480:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==20480:
         rand8w.append(w0_s[i])
         rand8p.append(p_p[i])
         rand8z.append(5)
-    if yy[i]==0:# y_test1[i] in [32248, 32256, 32640, 32704, 32736, 32744, 32760, 32761, 32767]:
+    if preds_conv[i]==0:
         laserw.append(w0_s[i])
         laserp.append(p_p[i])
         laserz.append(6)
@@ -236,7 +207,8 @@ for i in range(len(yy)):
         otherw.append(w0_s[i])
         otherp.append(p_p[i])
         otherz.append(1)
-        
+
+# Plot these to form a phase diagram
 plt.plot([1/laserw[i] for i in range(len(laserw))],laserp,'o',color='b')
 plt.plot([1/otherw[i] for i in range(len(otherw))],otherp,'s',color='g',markersize=10)
 plt.plot([1/becw[i] for i in range(len(becw))],becp,'s',color='r',markersize=10)
@@ -247,9 +219,9 @@ plt.plot([1/rand3w[i] for i in range(len(rand3w))],rand3p,'o',color='#FF1493')
 plt.plot([1/rand4w[i] for i in range(len(rand4w))],rand4p,'o',color='#FF1491')
 plt.plot([1/rand5w[i] for i in range(len(rand5w))],rand5p,'s',color='#FF1593',markersize=10)
 plt.plot([1/rand7w[i] for i in range(len(rand7w))],rand7p,'o',color='#FF9495')
-
 plt.yscale("log")
-#plt.xscale("log")
+
+#Labelling the phases
 plt.text(1.69e-3,0.001,'A',fontsize=15)
 plt.text(1.78e-3,0.00001,'B',color='w',fontsize=15)
 plt.text(1.82e-3,0.000001,'C',color='g',fontsize=15)
@@ -260,7 +232,3 @@ plt.xlabel(r"Thermalisation $\frac{1}{\lambda_{0}}$",fontsize=15)
 plt.title("Discrete phase diagram for NN output",fontsize=15)
 plt.ticklabel_format(style='sci', axis='x', scilimits=(0,0))
 plt.tick_params(labelsize=15)
-print(list(set(yy)))
-for i in range(len(list(set(yy)))):
-    print(bin(list(set(yy))[i])[2:].zfill(15))
-    
