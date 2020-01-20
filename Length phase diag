@@ -1,5 +1,4 @@
-#Import Packages.
-
+ 	#Import Packages
 from __future__ import absolute_import, division, print_function, unicode_literals
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -7,21 +6,21 @@ from tensorflow import keras
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
-import pandas
 from sklearn.preprocessing import MinMaxScaler
 
-#Import Data 15 modes (from datav2)
-
-order = 3  # this is/ an order of approximation, which is not relevant at the moment
-modes = 15 # (or 21) the number of modes
+#Import Data (v2)
+order = 3 # this is the order of approximation
+modes = 15 # number of modes
 mode_val=[]
 pump_poww=[]
+
+# Load data for each cut-off wavelength w0
 for w0 in np.arange(570.0,600.5,0.25):
-    alldata=np.load(r"H:\PythonShite\Project Project\Data_v2"+"\\threshData_{}_{}_{}.npy".format(w0,modes,order),encoding='bytes',allow_pickle=True).item(0)
     mode_val.append(list(alldata.values())[1])
     pump_poww.append(list(alldata.values())[0])
 training_w0=[]
 training_pump=[]
+
 
 for i in range(122):
     if len(mode_val[i]) == 129:
