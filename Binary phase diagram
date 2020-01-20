@@ -29,7 +29,6 @@ for i in range(122):
             training_pump.append(pump_poww[i][j])
 
 #Define the threshold to classify condensed modes, change as necessary
-           
 threshold=1e6
 y=[]
 
@@ -205,7 +204,6 @@ for i in range(len(preds_conv)):
         laserw.append(w0_s[i])
         laserp.append(p_p[i])
         laserz.append(6)
-    
     else:
         otherw.append(w0_s[i])
         otherp.append(p_p[i])
