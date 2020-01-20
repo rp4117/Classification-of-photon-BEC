@@ -76,8 +76,11 @@ model.add(Dense(15, activation='sigmoid'))
 model.compile(loss='binary_crossentropy',
               optimizer='adam')
 
-# Train the model with 10 epochs and a batch size of 100
-model.fit(X_train, y_train, epochs=10, batch_size=100)
+# Train the model with 10 epochs, a batch size of 100 and balanced class weights
+class_weights = class_weight.compute_class_weight('balanced',
+                                                 np.unique(y_train),
+                                                 y_train)
+model.fit(X_train, y_train, epochs=10, batch_size=100, class_weight=class_weights)
 
 preds = model.predict(X_test)
 preds[preds>=0.5] = 1
