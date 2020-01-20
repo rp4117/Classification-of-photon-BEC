@@ -10,19 +10,9 @@ from tensorflow import keras
 from sklearn.utils import class_weight
 import pandas
 from keras.models import Sequential
-from keras.layers import Dense, Flatten, Dropout
-from keras.wrappers.scikit_learn import KerasClassifier
-from keras.utils import np_utils
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import KFold
-from sklearn.preprocessing import LabelEncoder
-from sklearn.pipeline import Pipeline
-from tensorflow.keras.callbacks import TensorBoard
-from mpl_toolkits.mplot3d import Axes3D
+from keras.layers import Dense
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import colors
-import scipy as scipy
 
 #Importing the data (v2)
 
