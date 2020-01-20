@@ -184,3 +184,44 @@ cb=plt.colorbar()
 cb.set_label("Error")
 plt.show()
 
+# Create a plot to show how the mode populations vary with pump power
+n = 121  # w0 index
+x = pump_poww[0]
+
+# Initialise and populate lists for different modes
+y1 = []
+y2 = []
+y3 = []
+y13 = []
+for i in range(129):
+    y1.append(mode_val[n][i][0])
+for i in range(129):
+    y2.append(mode_val[n][i][1])
+for i in range(129):
+    y3.append(mode_val[n][i][2])
+for i in range(129):
+    y13.append(mode_val[n][i][12])
+for i in range(129):
+x.sort()
+y1.sort()
+y2.sort()
+y3.sort()
+y13.sort()
+plt.xscale('log')
+plt.yscale('log')
+x.sort()
+y1.sort()
+y2.sort()
+y3.sort()
+thresh=[10**4 for i in range(len(x))]
+plt.plot(x,thresh,'--',label="Threshold")
+plt.plot(x,y1,label=r"$1^{st}$ mode")
+plt.plot(x,y2,label=r"$2^{nd}$ mode")
+plt.plot(x,y3,label=r"$3^{rd}$ mode")
+plt.plot(x,y13,label=r"$13^{th}$ mode")
+plt.legend(fontsize=12)
+plt.xlabel(r"$\Gamma_{\uparrow}$",fontsize=15)
+plt.tick_params(labelsize=15)
+plt.ylabel("Mode population",fontsize=15)
+plt.xscale('log')
+plt.yscale('log')
