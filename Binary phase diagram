@@ -28,7 +28,7 @@ for i in range(122):
             training_w0.append(np.arange(570.0,600.5,0.25)[i])
             training_pump.append(pump_poww[i][j])
 
-#Define the threshold to classify condensed modes, chang as necessary
+#Define the threshold to classify condensed modes, change as necessary
            
 threshold=1e6
 y=[]
